@@ -152,3 +152,5 @@ cython_debug/
 #.idea/
 notebooks/logs
 notebooks/*/logs
+.vscode/settings.json
+notebooks/session_main.session
