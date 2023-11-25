@@ -5,7 +5,6 @@ classes from the tg_scrapper and db modules.
 import logging
 import os
 import time
-from typing import List
 import asyncio
 from utils.tg_client import TelegramScrapper
 from utils.db import Database
@@ -26,7 +25,6 @@ class Main:
 
     def __init__(
         self,
-        channels_list: List[str],
         const_api_id: str,
         const_api_hash: str,
         const_session: str,
@@ -40,7 +38,6 @@ class Main:
 
         Args:
         -----
-            channels_list (list): The list of channels.
             const_api_id (str): API ID provided by Telegram.
             const_api_hash (str): API Hash provided by Telegram.
             const_session (str): Session file location.
@@ -50,7 +47,6 @@ class Main:
             const_db_host(str): The host of the database.
             const_db_port(int): The port of the database.
         """
-        self.channels = channels_list
         logger.info("Initializing Main class...")
 
         self.scrapper = TelegramScrapper(const_api_id, const_api_hash, const_session)
@@ -69,29 +65,40 @@ class Main:
         await self.scrapper.connect()
         logger.info("Connected to Telegram.")
 
-        for channel in self.channels:
-            logger.info(f"Fetching messages from {channel}...")
+        # get all channels
+        logger.info("Fetching dialogs...")
+        dialogs = await self.scrapper.get_dialogs_list()
+        logger.debug(f"Fetched {len(dialogs)} dialogs")
 
-            try:
-                (
-                    channel_id,
-                    channel_name,
-                    messages_list,
-                ) = await self.scrapper.get_channel_messages(channel)
-                logger.debug(
-                    f"Fetched {len(messages_list)} messages from {channel_name} (ID: {channel_id})"
-                )
+        for dialog in dialogs:
+            dialog_type: str = dialog.get("_", " ")
+            dialog_id: int = dialog.get("id", 0)
+            dialog_title: str = dialog.get("title", " ")
 
-                self.database.check_and_add_channel(channel_id, channel_name)
-                logger.debug(f"Checked and added channel: {channel_name}")
+            self.database.check_and_add_channel(dialog_id, dialog_title, dialog_type)
+            logger.debug(f"Checked and added channel: {dialog_title}")
 
-                self.database.add_messages(channel_id, messages_list)
-                logger.debug(f"Added messages to database for channel: {channel_name}")
+            logger.info(f"Fetching messages from {dialog_title}...")
 
-            except Exception as e:
-                logger.error(f"Failed to fetch messages from {channel} due to {e}")
-            else:
-                logger.info(f"Successfully fetched and saved messages from {channel}")
+            # try:
+            #     (
+            #         _,
+            #         _,
+            #         messages_list,
+            #     ) = await self.scrapper.get_channel_messages(dialog_title)
+            #     logger.debug(
+            #         f"Fetched {len(messages_list)} messages from {dialog_title} (ID: {dialog_id})"
+            #     )
+
+            #     self.database.add_messages(dialog_id, messages_list)
+            #     logger.debug(f"Added messages to database for channel: {dialog_title}")
+
+            # except Exception as e:
+            #     logger.error(f"Failed to fetch messages from {dialog_title} due to {e}")
+            # else:
+            #     logger.info(
+            #         f"Successfully fetched and saved messages from {dialog_title}"
+            #     )
 
 
 def get_env_var(var_name: str) -> str:
@@ -112,7 +119,6 @@ if __name__ == "__main__":
     # environment variables
     api_id = get_env_var("TELEGRAM_API_ID")
     api_hash = get_env_var("TELEGRAM_API_HASH")
-    channels_str = get_env_var("TELEGRAM_CHANNELS")
 
     db_name = get_env_var("POSTGRES_DB")
     user = get_env_var("POSTGRES_USER")
@@ -121,15 +127,11 @@ if __name__ == "__main__":
     db_host = get_env_var("DB_HOST")
     db_port = int(get_env_var("DB_PORT"))
 
-    # list of channels
-    channels = [channel.strip() for channel in channels_str.split(",")]
-
     # need some time to up posgressql
     time.sleep(5)
 
     # initialize main class
     app = Main(
-        channels,
         api_id,
         api_hash,
         TELEGRAM_SESSON,

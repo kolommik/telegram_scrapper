@@ -29,7 +29,44 @@ class TelegramScrapper:
         await self.client.connect()
         logger.info("TelegramClient connected")
 
-    async def get_channel_messages(self, channel_name: str, limit: int = 10) -> Tuple[int, str, List[Message]]:
+    async def get_dialogs_list(self) -> List[dict]:
+        """Get a list of dalogs.
+
+        Returns
+        -------
+        List[dict]
+            A list of dalogs with properties:
+            {
+                "_": "Channel",
+                "id": 1380524958,
+                "title": "Хулиномика",
+            }
+        """
+        dialogs = await self.client.get_dialogs()
+        logger.info(f"Got {len(dialogs)} channels")
+
+        results = []
+        selected_keys = ["_", "id", "title"]
+
+        for dialog in dialogs:
+            raw_dialog_dict = dialog.entity.to_dict()
+            final_dialog_dict = {
+                key: raw_dialog_dict[key]
+                for key in selected_keys
+                if key in raw_dialog_dict
+            }
+
+            # for User dialogs, the title from entity is None
+            if raw_dialog_dict.get("title", None) is None:
+                raw_dialog_dict["title"] = dialog.title
+
+            results.append(final_dialog_dict)
+
+        return results
+
+    async def get_channel_messages(
+        self, channel_name: str, limit: int = 10
+    ) -> Tuple[int, str, List[Message]]:
         """Get a specified amount of messages from a channel.
 
         Args:
