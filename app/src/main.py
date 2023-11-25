@@ -56,8 +56,12 @@ class Main:
         self.scrapper = TelegramScrapper(const_api_id, const_api_hash, const_session)
         logger.debug(f"TelegramScrapper initialized with session: {const_session}")
 
-        self.database = Database(const_db_name, const_user, const_password, const_db_host, const_db_port)
-        logger.debug(f"Database initialized with dbname: {const_db_name}, user: {const_user}")
+        self.database = Database(
+            const_db_name, const_user, const_password, const_db_host, const_db_port
+        )
+        logger.debug(
+            f"Database initialized with dbname: {const_db_name}, user: {const_user}"
+        )
 
     async def run(self) -> None:
         """Run the scrapper and store messages into the database."""
@@ -72,14 +76,16 @@ class Main:
                 (
                     channel_id,
                     channel_name,
-                    messages,
+                    messages_list,
                 ) = await self.scrapper.get_channel_messages(channel)
-                logger.debug(f"Fetched {len(messages)} messages from {channel_name} (ID: {channel_id})")
+                logger.debug(
+                    f"Fetched {len(messages_list)} messages from {channel_name} (ID: {channel_id})"
+                )
 
                 self.database.check_and_add_channel(channel_id, channel_name)
                 logger.debug(f"Checked and added channel: {channel_name}")
 
-                self.database.add_messages(channel_id, messages)
+                self.database.add_messages(channel_id, messages_list)
                 logger.debug(f"Added messages to database for channel: {channel_name}")
 
             except Exception as e:
@@ -118,11 +124,21 @@ if __name__ == "__main__":
     # list of channels
     channels = [channel.strip() for channel in channels_str.split(",")]
 
-    # need some time to up posgress
+    # need some time to up posgressql
     time.sleep(5)
 
     # initialize main class
-    app = Main(channels, api_id, api_hash, TELEGRAM_SESSON, db_name, user, password, db_host, db_port)
+    app = Main(
+        channels,
+        api_id,
+        api_hash,
+        TELEGRAM_SESSON,
+        db_name,
+        user,
+        password,
+        db_host,
+        db_port,
+    )
 
     # main loop
     logger.info("Main loop")

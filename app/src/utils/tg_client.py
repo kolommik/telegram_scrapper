@@ -41,10 +41,13 @@ class TelegramScrapper:
         """
         entity = await self.client.get_entity(channel_name)
         channel_id = utils.get_peer_id(entity)
-        messages = self.client.iter_messages(channel_id, limit=limit)
+        # messages = self.client.iter_messages(channel_id, limit=limit)
+        messages_list = []
+        async for message in self.client.iter_messages(channel_id, limit=limit):
+            messages_list.append(message)
 
         # channel = await self.client.get_entity(channel_name)
         # messages = await self.client.get_message_history(channel, limit=limit)
-        logger.info(f"Got {len(messages)} messages from {channel_name}")
+        logger.info(f"Got {len(messages_list)} messages from {channel_name}")
 
-        return channel_id, channel_name, messages
+        return channel_id, channel_name, messages_list
