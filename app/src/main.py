@@ -6,17 +6,16 @@ import logging
 import os
 import time
 import asyncio
-from utils.tg_client import TelegramScrapper
+import psycopg2
+from utils.attachment_handler import AttachmentHandler
 from utils.db import Database
+from utils.tg_client import TelegramScrapper
 
-# Set up logging
 logging.basicConfig(
-    filename=os.path.join("logs", "main.log"),  # log file location
+    filename=os.path.join("logs", "main.log"),
     level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # log file format
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-
-# Create logger
 logger = logging.getLogger(__name__)
 
 
@@ -33,6 +32,8 @@ class Main:
         const_password: str,
         const_db_host: str,
         const_db_port: int,
+        const_images_path: str,
+        const_attachments_path: str,
     ) -> None:
         """Initialize Main instance.
 
@@ -49,25 +50,53 @@ class Main:
         """
         logger.info("Initializing Main class...")
 
-        self.scrapper = TelegramScrapper(const_api_id, const_api_hash, const_session)
-        logger.debug(f"TelegramScrapper initialized with session: {const_session}")
+        try:
+            self.scrapper = TelegramScrapper(
+                const_api_id, const_api_hash, const_session
+            )
+            logger.debug(f"TelegramScrapper initialized with session: {const_session}")
+        except Exception as e:
+            logger.error(f"Failed to initialize TelegramScrapper: {e}")
+            raise
 
-        self.database = Database(
-            const_db_name, const_user, const_password, const_db_host, const_db_port
-        )
-        logger.debug(
-            f"Database initialized with dbname: {const_db_name}, user: {const_user}"
-        )
+        try:
+            self.database = Database(
+                const_db_name, const_user, const_password, const_db_host, const_db_port
+            )
+            logger.debug(
+                f"Database initialized with dbname: {const_db_name}, user: {const_user}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize Database: {e}")
+            raise
+
+        try:
+            self.attachment_handler = AttachmentHandler(
+                const_images_path, const_attachments_path
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize AttachmentHandler: {e}")
+            raise
 
     async def run(self) -> None:
         """Run the scrapper and store messages into the database."""
         logger.info("Attempting to connect to Telegram...")
-        await self.scrapper.connect()
+        try:
+            await self.scrapper.connect()
+        except Exception as e:
+            logger.error(f"Failed to connect to Telegram due to: {e}")
+            return  # Если не удалось подключиться к Telegram, дальше продолжать не имеет смысла
+
         logger.info("Connected to Telegram.")
 
         # get all channels
         logger.info("Fetching dialogs...")
-        dialogs = await self.scrapper.get_dialogs_list()
+        try:
+            dialogs = await self.scrapper.get_dialogs_list()
+        except Exception as e:
+            logger.error(f"Failed to fetch dialogs due to: {e}")
+            return  # Если не удалось получить список диалогов, дальше продолжать не имеет смысла
+
         logger.debug(f"Fetched {len(dialogs)} dialogs")
 
         for dialog in dialogs:
@@ -75,30 +104,62 @@ class Main:
             dialog_id: int = dialog.get("id", 0)
             dialog_title: str = dialog.get("title", " ")
 
-            self.database.check_and_add_channel(dialog_id, dialog_title, dialog_type)
-            logger.debug(f"Checked and added channel: {dialog_title}")
+            try:
+                logger.debug(f"Processing channel: {dialog_title}")
+                self.database.check_and_add_channel(
+                    dialog_id, dialog_title, dialog_type
+                )
 
-            logger.info(f"Fetching messages from {dialog_title}...")
+                logger.info(f"Fetching messages from {dialog_title}...")
 
-            # try:
-            #     (
-            #         _,
-            #         _,
-            #         messages_list,
-            #     ) = await self.scrapper.get_channel_messages(dialog_title)
-            #     logger.debug(
-            #         f"Fetched {len(messages_list)} messages from {dialog_title} (ID: {dialog_id})"
-            #     )
+                # Получение ID последнего сохраненного сообщения для диалога
+                last_message_id = self.database.get_last_message_id(dialog_id)
 
-            #     self.database.add_messages(dialog_id, messages_list)
-            #     logger.debug(f"Added messages to database for channel: {dialog_title}")
+                # Получение новых сообщений
+                new_messages = await self.scrapper.get_new_dialog_messages(
+                    dialog_id, offset_id=last_message_id, limit=10
+                )
+                # Сохранение новых сообщений в базу данных
+                self.database.add_messages(dialog_id, new_messages)
 
-            # except Exception as e:
-            #     logger.error(f"Failed to fetch messages from {dialog_title} due to {e}")
-            # else:
-            #     logger.info(
-            #         f"Successfully fetched and saved messages from {dialog_title}"
-            #     )
+                # Сохраняем attachments
+                for message in new_messages:
+                    attachments = await self.scrapper.get_message_attachments(message)
+
+                    for attachment in attachments:
+                        file_path = await self.attachment_handler.save_attachment(
+                            self.scrapper.client, attachment
+                        )
+                        if file_path:
+                            attachment_type_id = self.database.add_attachment_type(
+                                attachment["type"]
+                            )
+                            self.database.add_attachment(
+                                attachment["id"],
+                                message.id,
+                                dialog_id,
+                                attachment_type_id,
+                                file_path,
+                            )
+                            logger.debug(
+                                f"Saved attachment for message {message.id} to {file_path}"
+                            )
+
+            except AttributeError as e:
+                logger.error(f"Attribute error while processing {dialog_title}: {e}")
+                continue
+            except psycopg2.Error as e:
+                logger.error(
+                    f"Database error while processing {dialog_title}: {e.pgcode} - {e.pgerror}"
+                )
+                continue
+            except Exception as e:
+                logger.error(f"Unexpected error while processing {dialog_title}: {e}")
+                continue
+            else:
+                logger.info(
+                    f"Successfully fetched and saved {len(new_messages)} messages from {dialog_title}"
+                )
 
 
 def get_env_var(var_name: str) -> str:
@@ -114,7 +175,7 @@ if __name__ == "__main__":
     logger.info("Start running")
 
     # telegram session file location (hardcode)
-    TELEGRAM_SESSON = "session/telegram_session"
+    telegram_session = "session/telegram_session"
 
     # environment variables
     api_id = get_env_var("TELEGRAM_API_ID")
@@ -128,21 +189,22 @@ if __name__ == "__main__":
     db_port = int(get_env_var("DB_PORT"))
 
     # need some time to up posgressql
-    time.sleep(5)
+    time.sleep(10)
 
     # initialize main class
     app = Main(
-        api_id,
-        api_hash,
-        TELEGRAM_SESSON,
-        db_name,
-        user,
-        password,
-        db_host,
-        db_port,
+        const_api_id=api_id,
+        const_api_hash=api_hash,
+        const_session=telegram_session,
+        const_db_name=db_name,
+        const_user=user,
+        const_password=password,
+        const_db_host=db_host,
+        const_db_port=db_port,
+        const_images_path="/data/images",
+        const_attachments_path="/data/attachments",
     )
 
-    # main loop
     logger.info("Main loop")
     loop = asyncio.get_event_loop()
     loop.run_until_complete(app.run())

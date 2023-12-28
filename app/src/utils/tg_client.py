@@ -1,9 +1,9 @@
 """A module for interacting with Telegram via the Telethon library.
 This module provides the TelegramScrapper class to retrieve messages from specified Telegram channels.
 """
-from typing import List, Tuple
+from typing import List
 import logging
-from telethon.sync import TelegramClient, utils
+from telethon.sync import TelegramClient
 from telethon.tl.custom.message import Message
 
 logger = logging.getLogger(__name__)
@@ -57,34 +57,45 @@ class TelegramScrapper:
             }
 
             # for User dialogs, the title from entity is None
-            if raw_dialog_dict.get("title", None) is None:
-                raw_dialog_dict["title"] = dialog.title
+            if final_dialog_dict.get("title", None) is None:
+                final_dialog_dict["title"] = dialog.title
 
             results.append(final_dialog_dict)
 
         return results
 
-    async def get_channel_messages(
-        self, channel_name: str, limit: int = 10
-    ) -> Tuple[int, str, List[Message]]:
-        """Get a specified amount of messages from a channel.
+    async def get_new_dialog_messages(
+        self, dialog_id: int, offset_id: int = 0, limit: int = 10
+    ) -> List[Message]:
+        """Get new messages for a dialog starting from a specific offset_id.
 
         Args:
-        -----
-            channel_name (str): The name of the channel.
+            dialog_id (int): The ID of the dialog.
+            offset_id (int): The message ID from which to start fetching messages.
             limit (int): The number of messages to retrieve.
+
         Returns:
-            A list of messages.
+            List[Message]: A list of new messages.
         """
-        entity = await self.client.get_entity(channel_name)
-        channel_id = utils.get_peer_id(entity)
-        # messages = self.client.iter_messages(channel_id, limit=limit)
-        messages_list = []
-        async for message in self.client.iter_messages(channel_id, limit=limit):
-            messages_list.append(message)
+        messages = await self.client.get_messages(
+            dialog_id, offset_id=offset_id, limit=limit, reverse=True
+        )
+        return messages
 
-        # channel = await self.client.get_entity(channel_name)
-        # messages = await self.client.get_message_history(channel, limit=limit)
-        logger.info(f"Got {len(messages_list)} messages from {channel_name}")
+    async def get_message_attachments(self, message: Message) -> List[dict]:
+        """Get attachments from a message.
 
-        return channel_id, channel_name, messages_list
+        Args:
+            message (Message): The message object from Telethon.
+
+        Returns:
+            List[dict]: A list of attachments with their properties.
+        """
+        attachments = []
+        if message.photo:
+            attachments.append(
+                {"type": "photo", "id": message.photo.id, "file": message.photo}
+            )
+        # TODO: Добавить обработку других типов вложений (документы, видео и т.д.)
+
+        return attachments

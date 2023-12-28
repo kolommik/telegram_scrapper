@@ -14,9 +14,12 @@ CREATE TABLE IF NOT EXISTS Dialogs (
 
 -- Создание таблицы с собщениями диалога
 CREATE TABLE IF NOT EXISTS Messages (
-    id BIGINT PRIMARY KEY,
+    id BIGINT NOT NULL,
     dialog_id BIGINT NOT NULL REFERENCES Dialogs (id),
-    text TEXT
+    text TEXT,
+    created TIMESTAMP NOT NULL,
+    grouped_id BIGINT,
+    PRIMARY KEY (dialog_id, id)
 );
 
 -- Создание таблицы с типами вложений
@@ -26,13 +29,15 @@ CREATE TABLE IF NOT EXISTS AttachmentTypes (
 );
 
 -- Создание таблицы с вложениями
--- Описание что за вожеие и где лежит
 CREATE TABLE IF NOT EXISTS Attachments (
     id BIGINT PRIMARY KEY,
     type_id INTEGER NOT NULL REFERENCES AttachmentTypes (id),
-    message_id BIGINT NOT NULL REFERENCES Messages (id),
-    file_path VARCHAR(255) NOT NULL
+    message_id BIGINT NOT NULL,
+    dialog_id BIGINT NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    FOREIGN KEY (dialog_id, message_id) REFERENCES Messages (dialog_id, id)
 );
+
 
 -- Создание таблицы с комментариями на сообщения диалога 
 CREATE TABLE IF NOT EXISTS Replies (
