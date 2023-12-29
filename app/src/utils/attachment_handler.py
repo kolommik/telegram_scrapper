@@ -11,9 +11,21 @@ class AttachmentHandler:
 
     async def save_attachment(self, client: TelegramClient, attachment: dict) -> str:
         """Save an attachment and return the file path."""
+
         file_path = None
 
         try:
+            # photo - фотки берем
+            # document - документы берем
+
+            # web_preview - не берем, превью не нужно
+            # audio - не берем, не ясно как юзать
+            # voice - не берем, не ясно как юзать
+            # video - не берем, не ясно как юзать
+            # video_note - не берем, не ясно как юзать
+            # gif - не берем, это как правило фигня
+            # sticker - не берем, не нужно
+
             if attachment["type"] == "photo":
                 file_path = os.path.join(self.images_path, f"{attachment['id']}.jpg")
                 await client.download_media(attachment["file"], file=file_path)
@@ -22,8 +34,6 @@ class AttachmentHandler:
                     self.attachments_path, f"{attachment['id']}{attachment['ext']}"
                 )
                 await client.download_media(attachment["file"], file=file_path)
-
-            # TODO: Добавить обработку других типов вложений
 
         except OSError as e:
             print(f"An error occurred while saving the attachment: {e}")

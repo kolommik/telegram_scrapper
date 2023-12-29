@@ -1,6 +1,7 @@
 """A module for interacting with Telegram via the Telethon library.
 This module provides the TelegramScrapper class to retrieve messages from specified Telegram channels.
 """
+import os
 from typing import List
 import logging
 from telethon.sync import TelegramClient
@@ -96,6 +97,16 @@ class TelegramScrapper:
             attachments.append(
                 {"type": "photo", "id": message.photo.id, "file": message.photo}
             )
-        # TODO: Добавить обработку других типов вложений (документы, видео и т.д.)
+        if message.document:
+            file_name = message.file.name
+            file_ext = os.path.splitext(file_name)[1]
+            attachments.append(
+                {
+                    "type": "document",
+                    "id": message.document.id,
+                    "file": message.document,
+                    "ext": file_ext,
+                }
+            )
 
         return attachments

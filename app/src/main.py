@@ -117,7 +117,7 @@ class Main:
 
                 # Получение новых сообщений
                 new_messages = await self.scrapper.get_new_dialog_messages(
-                    dialog_id, offset_id=last_message_id, limit=10
+                    dialog_id, offset_id=last_message_id, limit=50
                 )
                 # Сохранение новых сообщений в базу данных
                 self.database.add_messages(dialog_id, new_messages)
