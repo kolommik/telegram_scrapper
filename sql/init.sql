@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS Dialogs (
 CREATE TABLE IF NOT EXISTS Messages (
     id BIGINT NOT NULL,
     dialog_id BIGINT NOT NULL REFERENCES Dialogs (id),
+    reply_to_msg_id BIGINT NOT NULL,
     text TEXT,
     created TIMESTAMP NOT NULL,
     grouped_id BIGINT,
@@ -42,9 +43,13 @@ CREATE TABLE IF NOT EXISTS Attachments (
 -- Создание таблицы с комментариями на сообщения диалога 
 CREATE TABLE IF NOT EXISTS Replies (
     id BIGINT PRIMARY KEY,
-    message_id BIGINT NOT NULL REFERENCES Messages (id),
-    reply_to_message_id BIGINT REFERENCES Messages (id),
+    dialog_id BIGINT NOT NULL,
+    reply_to_msg_id BIGINT NOT NULL,
+    main_dialog_id BIGINT NOT NULL,
+    main_message_id BIGINT NOT NULL,
     content TEXT,
-    sender VARCHAR(255),
-    date TIMESTAMP
+    sender_id BIGINT,
+    date TIMESTAMP,
+    PRIMARY KEY (dialog_id, id),
+    FOREIGN KEY (main_dialog_id, main_message_id) REFERENCES Messages (dialog_id, id)
 );

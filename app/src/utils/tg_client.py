@@ -4,8 +4,10 @@ This module provides the TelegramScrapper class to retrieve messages from specif
 import os
 from typing import List
 import logging
+from telethon import utils
 from telethon.sync import TelegramClient
 from telethon.tl.custom.message import Message
+from telethon.tl.functions.messages import GetRepliesRequest
 
 logger = logging.getLogger(__name__)
 
@@ -110,3 +112,44 @@ class TelegramScrapper:
             )
 
         return attachments
+
+    async def get_message_replies(self, channel_id, message_id, limit=10) -> List[dict]:
+        """Get replies for a message.
+
+        Args:
+            channel_id (int): The ID of the channel.
+            message_id (int): The ID of the message to get replies for.
+            limit (int): The number of replies to retrieve.
+
+        Returns:
+            List[dict]: A list of replies with their properties.
+        """
+        replies = []
+        thread = await self.client(
+            GetRepliesRequest(
+                peer=channel_id,
+                msg_id=message_id,
+                offset_id=0,
+                limit=limit,
+                offset_date=None,
+                add_offset=0,
+                max_id=0,
+                min_id=0,
+                hash=0,
+            )
+        )
+
+        for reply in thread.messages:
+            sender_id = utils.get_peer_id(reply.from_id) if reply.from_id else None
+            replies.append(
+                {
+                    "id": reply.id,
+                    "reply_to_message_id": reply.reply_to_msg_id,
+                    "reply_to_dialog_id": reply.peer_id.channel_id,
+                    "content": reply.message,
+                    "sender_id": sender_id,
+                    "date": reply.date.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            )
+
+        return replies

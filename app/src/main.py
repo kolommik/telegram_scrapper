@@ -2,17 +2,27 @@
 in a PostgreSQL database. This module combines the functionality of TelegramScrapper and Database classes
 classes from the tg_scrapper and db modules.
 """
+
 import logging
 import os
-import time
 import asyncio
-import psycopg2
 from utils.attachment_handler import AttachmentHandler
 from utils.db import Database
 from utils.tg_client import TelegramScrapper
+from utils.config import (
+    LOGS_DIR,
+    IMAGES_DIR,
+    ATTACHMENTS_DIR,
+    TELEGRAM_SESSION_FILE,
+    DEBUG_MODE,
+    DEBUG_CHANNEL_ID,
+    DEBUG_MESSAGE_ID_THRESHOLD,
+    MESSAGE_FETCH_LIMIT,
+    REPLY_FETCH_LIMIT,
+)
 
 logging.basicConfig(
-    filename=os.path.join("logs", "main.log"),
+    filename=os.path.join(LOGS_DIR, "main.log"),
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
@@ -97,6 +107,13 @@ class Main:
             logger.error(f"Failed to fetch dialogs due to: {e}")
             return  # Если не удалось получить список диалогов, дальше продолжать не имеет смысла
 
+        # FOR DEBUG ------------------------------------------------------
+        if DEBUG_MODE:
+            dialogs = [
+                dialog for dialog in dialogs if dialog.get("id") == DEBUG_CHANNEL_ID
+            ]
+        # FOR DEBUG ------------------------------------------------------
+
         logger.debug(f"Fetched {len(dialogs)} dialogs")
 
         for dialog in dialogs:
@@ -109,23 +126,34 @@ class Main:
                 self.database.check_and_add_channel(
                     dialog_id, dialog_title, dialog_type
                 )
+            except Exception as e:
+                logger.error(f"Error while adding channel {dialog_title}: {e}")
+                continue
 
+            try:
                 logger.info(f"Fetching messages from {dialog_title}...")
-
-                # Получение ID последнего сохраненного сообщения для диалога
                 last_message_id = self.database.get_last_message_id(dialog_id)
 
-                # Получение новых сообщений
+                # FOR DEBUG ------------------------------------------------------
+                if DEBUG_MODE:
+                    last_message_id = max(DEBUG_MESSAGE_ID_THRESHOLD, last_message_id)
+                # FOR DEBUG ------------------------------------------------------
+
                 new_messages = await self.scrapper.get_new_dialog_messages(
-                    dialog_id, offset_id=last_message_id, limit=50
+                    dialog_id, offset_id=last_message_id, limit=MESSAGE_FETCH_LIMIT
                 )
-                # Сохранение новых сообщений в базу данных
                 self.database.add_messages(dialog_id, new_messages)
+            except Exception as e:
+                logger.error(
+                    f"Error while fetching or saving messages from {dialog_title}: {e}"
+                )
+                continue
 
-                # Сохраняем attachments
-                for message in new_messages:
+            # пробегаемся по всем сообщениям
+            for message in new_messages:
+                # Обработка и сохранение приложенных к сообщению файлов
+                try:
                     attachments = await self.scrapper.get_message_attachments(message)
-
                     for attachment in attachments:
                         file_path = await self.attachment_handler.save_attachment(
                             self.scrapper.client, attachment
@@ -144,22 +172,39 @@ class Main:
                             logger.debug(
                                 f"Saved attachment for message {message.id} to {file_path}"
                             )
+                except Exception as e:
+                    logger.error(
+                        f"Error while processing attachments for message {message.id} in {dialog_title}: {e}"
+                    )
 
-            except AttributeError as e:
-                logger.error(f"Attribute error while processing {dialog_title}: {e}")
-                continue
-            except psycopg2.Error as e:
-                logger.error(
-                    f"Database error while processing {dialog_title}: {e.pgcode} - {e.pgerror}"
-                )
-                continue
-            except Exception as e:
-                logger.error(f"Unexpected error while processing {dialog_title}: {e}")
-                continue
-            else:
-                logger.info(
-                    f"Successfully fetched and saved {len(new_messages)} messages from {dialog_title}"
-                )
+                # Обработка и сохранение ответов на сообщения
+                try:
+                    if message.replies and message.replies.comments:
+                        replies = await self.scrapper.get_message_replies(
+                            dialog_id, message.id, limit=REPLY_FETCH_LIMIT
+                        )
+                        last_reply_id = self.database.get_last_reply_id(
+                            dialog_id, message.id
+                        )
+                        for reply in replies:
+                            if reply["id"] > last_reply_id:
+                                self.database.add_reply(
+                                    reply_id=reply["id"],
+                                    main_dialog_id=dialog_id,
+                                    main_message_id=message.id,
+                                    reply_to_dialog_id=reply["reply_to_dialog_id"],
+                                    reply_to_msg_id=reply["reply_to_message_id"],
+                                    content=reply["content"],
+                                    sender_id=reply["sender_id"],
+                                    date=reply["date"],
+                                )
+                                logger.debug(
+                                    f"Saved reply {reply['id']} for message {message.id}"
+                                )
+                except Exception as e:
+                    logger.error(
+                        f"Error while processing replies for message {message.id} in {dialog_title}: {e}"
+                    )
 
 
 def get_env_var(var_name: str) -> str:
@@ -175,7 +220,7 @@ if __name__ == "__main__":
     logger.info("Start running")
 
     # telegram session file location (hardcode)
-    telegram_session = "session/telegram_session"
+    telegram_session = TELEGRAM_SESSION_FILE
 
     # environment variables
     api_id = get_env_var("TELEGRAM_API_ID")
@@ -189,7 +234,7 @@ if __name__ == "__main__":
     db_port = int(get_env_var("DB_PORT"))
 
     # need some time to up posgressql
-    time.sleep(10)
+    # time.sleep(10)
 
     # initialize main class
     app = Main(
@@ -201,8 +246,8 @@ if __name__ == "__main__":
         const_password=password,
         const_db_host=db_host,
         const_db_port=db_port,
-        const_images_path="/data/images",
-        const_attachments_path="/data/attachments",
+        const_images_path=IMAGES_DIR,
+        const_attachments_path=ATTACHMENTS_DIR,
     )
 
     logger.info("Main loop")

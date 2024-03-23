@@ -53,7 +53,9 @@ class Database:
         # check if the dialog type exists
         cursor = self.conn.cursor()
         try:
-            cursor.execute("SELECT id FROM DialogTypes WHERE name = %s;", (dialog_type,))
+            cursor.execute(
+                "SELECT id FROM DialogTypes WHERE name = %s;", (dialog_type,)
+            )
             query_results = cursor.fetchone()
             if query_results is not None:
                 type_id = query_results[0]
@@ -61,7 +63,7 @@ class Database:
             else:
                 cursor.execute(
                     "INSERT INTO DialogTypes (name) VALUES (%s) RETURNING id;",
-                    (dialog_type,)
+                    (dialog_type,),
                 )
                 type_id = cursor.fetchone()[0]
                 self.conn.commit()
@@ -72,7 +74,7 @@ class Database:
             if cursor.fetchone() is None:
                 cursor.execute(
                     "INSERT INTO Dialogs (id, dialogtype_id, name) VALUES (%s, %s, %s);",
-                    (dialog_id, type_id, dialog_title)
+                    (dialog_id, type_id, dialog_title),
                 )
                 self.conn.commit()
                 logger.info(f"Add channel {dialog_id}: {dialog_title}")
@@ -82,8 +84,7 @@ class Database:
             logger.error(f"Failed to check and add channel: {e}")
             self.conn.rollback()
         finally:
-            if cursor:
-                cursor.close()
+            cursor.close()
 
     def add_messages(self, channel_id: int, messages: List[Message]) -> None:
         """Add messages to the Messages table.
@@ -114,8 +115,7 @@ class Database:
             logger.error(f"Failed to add messages: {e}")
             self.conn.rollback()
         finally:
-            if cursor:
-                cursor.close()
+            cursor.close()
 
     def get_last_message_id(self, dialog_id: int) -> int:
         """Get the ID of the last saved message for a dialog.
@@ -139,8 +139,7 @@ class Database:
             self.conn.rollback()
             return 0
         finally:
-            if cursor:
-                cursor.close()
+            cursor.close()
 
     def add_attachment_type(self, attachment_type: str) -> int:
         """Add a new attachment type if it doesn't exist and return its ID.
@@ -171,8 +170,7 @@ class Database:
             self.conn.rollback()
             return 0
         finally:
-            if cursor:
-                cursor.close()
+            cursor.close()
 
     def add_attachment(
         self,
@@ -205,5 +203,82 @@ class Database:
             logger.error(f"Failed to add attachment: {e}")
             self.conn.rollback()
         finally:
-            if cursor:
-                cursor.close()
+            cursor.close()
+
+    def add_reply(
+        self,
+        reply_id: int,
+        main_dialog_id: int,
+        main_message_id: int,
+        reply_to_dialog_id: int,
+        reply_to_msg_id: int,
+        content: str,
+        sender_id: int,
+        date: str,
+    ) -> None:
+        """Add a reply to the Replies table.
+
+        Args:
+            reply_id (int): The ID of the reply message.
+            main_dialog_id (int): The ID of the main dialog.
+            main_message_id (int): The ID of the main message being replied to.
+            reply_to_dialog_id (int): The ID of the dialog where the reply was posted.
+            reply_to_msg_id (int): The ID of the message being replied to.
+            content (str): The content of the reply.
+            sender_id (int): The sender of the reply.
+            date (str): The date when the reply was sent.
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(
+                """INSERT INTO Replies
+                (id, main_dialog_id, main_message_id, reply_to_dialog_id, reply_to_msg_id,
+                content, sender_id, date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO NOTHING;""",
+                (
+                    reply_id,
+                    main_dialog_id,
+                    main_message_id,
+                    reply_to_dialog_id,
+                    reply_to_msg_id,
+                    content,
+                    sender_id,
+                    date,
+                ),
+            )
+            self.conn.commit()
+            logger.info(
+                f"Added reply {reply_id} to message {main_message_id} in dialog {main_dialog_id}"
+            )
+        except psycopg2.Error as e:
+            logger.error(f"Failed to add reply: {e}")
+            self.conn.rollback()
+        finally:
+            cursor.close()
+
+    def get_last_reply_id(self, main_dialog_id: int, main_message_id: int) -> int:
+        """Get the ID of the last saved reply for a message.
+
+        Args:
+            main_dialog_id (int): The ID of the main dialog.
+            main_message_id (int): The ID of the main message.
+
+        Returns:
+            int: The ID of the last reply or 0 if no replies are saved.
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT MAX(id) FROM Replies WHERE main_dialog_id = %s AND main_message_id = %s;",
+                (main_dialog_id, main_message_id),
+            )
+            last_reply_id = cursor.fetchone()[0]
+            cursor.close()
+            return last_reply_id or 0
+        except psycopg2.Error as e:
+            logger.error(f"Failed to get last reply ID: {e}")
+            self.conn.rollback()
+            return 0
+        finally:
+            cursor.close()
