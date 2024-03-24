@@ -1,6 +1,8 @@
-"""A module for interacting with PostgreSQL database.
-The module provides the Database class to manage channels and messages in the database.
+"""Модуль для взаимодействия с базой данных PostgreSQL.
+
+Этот модуль предоставляет класс Database для управления каналами и сообщениями в базе данных.
 """
+
 from typing import List
 import logging
 import psycopg2
@@ -10,7 +12,22 @@ logger = logging.getLogger(__name__)
 
 
 class Database:
-    """A class used to interact with the PostgreSQL database."""
+    """
+    Класс для взаимодействия с базой данных PostgreSQL.
+
+    Attributes:
+    ----------
+    db_name : str
+        Имя базы данных.
+    user : str
+        Имя пользователя.
+    password : str
+        Пароль пользователя.
+    host : str
+        Хост сервера PostgreSQL. По умолчанию localhost.
+    port : str
+        Порт сервера PostgreSQL. По умолчанию 5432.
+    """
 
     def __init__(
         self,
@@ -20,15 +37,21 @@ class Database:
         host: str = "localhost",
         port: str = "5432",
     ) -> None:
-        """Initialize Database instance.
+        """
+        Инициализация экземпляра Database.
 
-        Args:
-        -----
-            db_name (str): The name of the database.
-            user (str): The name of the user.
-            password (str): The user's password.
-            host (str): The host of the PostgreSQL server. Defaults to localhost.
-            port (str): The port of the PostgreSQL server. Defaults to 5432.
+        Parameters:
+        ----------
+        db_name : str
+            Имя базы данных.
+        user : str
+            Имя пользователя.
+        password : str
+            Пароль пользователя.
+        host : str
+            Хост сервера PostgreSQL. По умолчанию localhost.
+        port : str
+            Порт сервера PostgreSQL. По умолчанию 5432.
         """
         try:
             self.conn = psycopg2.connect(
@@ -41,16 +64,20 @@ class Database:
     def check_and_add_channel(
         self, dialog_id: int, dialog_title: str, dialog_type: str
     ) -> None:
-        """Check if the dialog exists in the Dialogs table. If not, adds it.
-        Also adds the dialog type to the DialogTypes table if it does not exist.
-
-        Args:
-        -----
-            dialog_id (int): The ID of the dialog.
-            dialog_title (str): The name of the dialog.
-            dialog_type (str): The type of the dialog.
         """
-        # check if the dialog type exists
+        Проверяет существование диалога в таблице Dialogs. Если нет, добавляет его.
+        Также добавляет тип диалога в таблицу DialogTypes, если он не существует.
+
+        Parameters:
+        ----------
+        dialog_id : int
+            ID диалога.
+        dialog_title : str
+            Название диалога.
+        dialog_type : str
+            Тип диалога.
+        """
+        # проверяем существование типа диалога
         cursor = self.conn.cursor()
         try:
             cursor.execute(
@@ -59,7 +86,7 @@ class Database:
             query_results = cursor.fetchone()
             if query_results is not None:
                 type_id = query_results[0]
-                logger.info(f"DialogType {dialog_type} already exists")
+                logger.info(f"Тип диалога {dialog_type} уже существует")
             else:
                 cursor.execute(
                     "INSERT INTO DialogTypes (name) VALUES (%s) RETURNING id;",
@@ -67,9 +94,9 @@ class Database:
                 )
                 type_id = cursor.fetchone()[0]
                 self.conn.commit()
-                logger.info(f"Add DialogType {dialog_type}")
+                logger.info(f"Добавлен тип диалога {dialog_type}")
 
-            # check if the dialog exists
+            # проверяем существование диалога
             cursor.execute("SELECT id FROM Dialogs WHERE id = %s;", (dialog_id,))
             if cursor.fetchone() is None:
                 cursor.execute(
@@ -77,22 +104,24 @@ class Database:
                     (dialog_id, type_id, dialog_title),
                 )
                 self.conn.commit()
-                logger.info(f"Add channel {dialog_id}: {dialog_title}")
+                logger.info(f"Добавлен канал {dialog_id}: {dialog_title}")
 
             cursor.close()
         except psycopg2.Error as e:
-            logger.error(f"Failed to check and add channel: {e}")
+            logger.error(f"Ошибка при проверке и добавлении канала: {e}")
             self.conn.rollback()
         finally:
             cursor.close()
 
     def add_messages(self, channel_id: int, messages: List[Message]) -> None:
-        """Add messages to the Messages table.
+        """Добавляет сообщения в таблицу Messages.
 
-        Args:
-        -----
-            channel_id (int): The ID of the channel.
-            messages (list): A list of messages.
+        Parameters:
+        ----------
+            channel_id : int
+                ID канала.
+            messages : list
+                Список сообщений.
         """
         cursor = self.conn.cursor()
         try:
@@ -108,23 +137,26 @@ class Database:
 
                 cursor.execute(query, data_tuple)
             self.conn.commit()
-            logger.info(f"Add {len(messages)} messages to channel {channel_id}")
+            logger.info(f"Добавлено {len(messages)} сообщений в канал {channel_id}")
 
             cursor.close()
         except psycopg2.Error as e:
-            logger.error(f"Failed to add messages: {e}")
+            logger.error(f"Ошибка при добавлении сообщений: {e}")
             self.conn.rollback()
         finally:
             cursor.close()
 
     def get_last_message_id(self, dialog_id: int) -> int:
-        """Get the ID of the last saved message for a dialog.
+        """Получает ID последнего сохраненного сообщения для диалога.
 
-        Args:
-            dialog_id (int): The ID of the dialog.
+        Parameters:
+        ----------
+            dialog_id : int
+                ID диалога.
 
         Returns:
-            int: The ID of the last message or 0 if no messages are saved.
+        -----
+            int : ID последнего сообщения или 0, если сообщения не сохранены.
         """
         cursor = self.conn.cursor()
         try:
@@ -135,20 +167,23 @@ class Database:
             cursor.close()
             return last_message_id or 0
         except psycopg2.Error as e:
-            logger.error(f"Failed to get last message ID: {e}")
+            logger.error(f"Ошибка при получении ID последнего сообщения: {e}")
             self.conn.rollback()
             return 0
         finally:
             cursor.close()
 
     def add_attachment_type(self, attachment_type: str) -> int:
-        """Add a new attachment type if it doesn't exist and return its ID.
+        """Добавляет новый тип вложения, если он не существует, и возвращает его ID.
 
-        Args:
-            attachment_type (str): The type of the attachment.
+        Parameters:
+        ----------
+            attachment_type : str
+                Тип вложения.
 
         Returns:
-            int: The ID of the attachment type.
+        -----
+            int: ID типа вложения.
         """
         cursor = self.conn.cursor()
         try:
@@ -166,7 +201,7 @@ class Database:
             cursor.close()
             return type_id or 0
         except psycopg2.Error as e:
-            logger.error(f"Failed to add attachment type: {e}")
+            logger.error(f"Ошибка при добавлении типа вложения: {e}")
             self.conn.rollback()
             return 0
         finally:
@@ -180,14 +215,20 @@ class Database:
         attachment_type_id: int,
         file_path: str,
     ) -> None:
-        """Add an attachment to the Attachments table.
+        """Добавляет вложение в таблицу Attachments.
 
-        Args:
-            attachment_id (int): The ID of the attachment.
-            message_id (int): The ID of the message the attachment belongs to.
-            dialog_id (int): The ID of the dialog the attachment belongs to.
-            attachment_type_id (int): The ID of the attachment type.
-            file_path (str): The file path of the attachment.
+        Parameters:
+        ----------
+            attachment_id : int
+                ID вложения.
+            message_id : int
+                ID сообщения, к которому относится вложение.
+            dialog_id : int
+                ID диалога, к которому относится вложение.
+            attachment_type_id : int
+                ID типа вложения.
+            file_path : str
+                Путь к файлу вложения.
         """
         cursor = self.conn.cursor()
         try:
@@ -200,7 +241,7 @@ class Database:
             self.conn.commit()
             cursor.close()
         except psycopg2.Error as e:
-            logger.error(f"Failed to add attachment: {e}")
+            logger.error(f"Ошибка при добавлении вложения: {e}")
             self.conn.rollback()
         finally:
             cursor.close()
@@ -216,17 +257,26 @@ class Database:
         sender_id: int,
         date: str,
     ) -> None:
-        """Add a reply to the Replies table.
+        """Добавляет ответ в таблицу Replies.
 
-        Args:
-            reply_id (int): The ID of the reply message.
-            main_dialog_id (int): The ID of the main dialog.
-            main_message_id (int): The ID of the main message being replied to.
-            reply_to_dialog_id (int): The ID of the dialog where the reply was posted.
-            reply_to_msg_id (int): The ID of the message being replied to.
-            content (str): The content of the reply.
-            sender_id (int): The sender of the reply.
-            date (str): The date when the reply was sent.
+        Parameters:
+        ----------
+            reply_id : int
+                ID ответного сообщения.
+            main_dialog_id : int
+                ID основного диалога.
+            main_message_id : int
+                ID основного сообщения, на которое отвечают.
+            reply_to_dialog_id : int
+                ID диалога, в котором был размещен ответ.
+            reply_to_msg_id : int
+                ID сообщения, на которое был дан ответ.
+            content : str
+                Содержание ответа.
+            sender_id : int
+                Отправитель ответа.
+            date : str
+                Дата отправки ответа.
         """
         cursor = self.conn.cursor()
         try:
@@ -249,23 +299,27 @@ class Database:
             )
             self.conn.commit()
             logger.info(
-                f"Added reply {reply_id} to message {main_message_id} in dialog {main_dialog_id}"
+                f"Добавлен ответ {reply_id} на сообщение {main_message_id} в диалоге {main_dialog_id}"
             )
         except psycopg2.Error as e:
-            logger.error(f"Failed to add reply: {e}")
+            logger.error(f"Ошибка при добавлении ответа: {e}")
             self.conn.rollback()
         finally:
             cursor.close()
 
     def get_last_reply_id(self, main_dialog_id: int, main_message_id: int) -> int:
-        """Get the ID of the last saved reply for a message.
+        """Получает ID последнего сохраненного ответа для сообщения.
 
-        Args:
-            main_dialog_id (int): The ID of the main dialog.
-            main_message_id (int): The ID of the main message.
+        Parameters:
+        ----------
+            main_dialog_id : int
+                ID основного диалога.
+            main_message_id : int
+                ID основного сообщения.
 
         Returns:
-            int: The ID of the last reply or 0 if no replies are saved.
+        -----
+            int: ID последнего ответа или 0, если ответы не сохранены.
         """
         cursor = self.conn.cursor()
         try:
@@ -277,7 +331,7 @@ class Database:
             cursor.close()
             return last_reply_id or 0
         except psycopg2.Error as e:
-            logger.error(f"Failed to get last reply ID: {e}")
+            logger.error(f"Ошибка при получении ID последнего ответа: {e}")
             self.conn.rollback()
             return 0
         finally:

@@ -1,6 +1,8 @@
-"""A module for interacting with Telegram via the Telethon library.
-This module provides the TelegramScrapper class to retrieve messages from specified Telegram channels.
+"""Модуль для взаимодействия с Telegram через библиотеку Telethon.
+
+Этот модуль предоставляет класс TelegramScrapper для получения сообщений из указанных каналов Telegram.
 """
+
 import os
 from typing import List
 import logging
@@ -13,32 +15,47 @@ logger = logging.getLogger(__name__)
 
 
 class TelegramScrapper:
-    """A class used to interact with Telegram via Telethon."""
+    """
+    Класс для взаимодействия с Telegram через Telethon.
+
+    Attributes:
+    ----------
+    api_id : str
+        API ID, предоставленный Telegram.
+    api_hash : str
+        API Hash, предоставленный Telegram.
+    session : str
+        Расположение файла сессии.
+    """
 
     def __init__(self, api_id: str, api_hash: str, session: str) -> None:
-        """Initialize TelegramScrapper instance.
+        """
+        Инициализация экземпляра TelegramScrapper.
 
-        Args:
-        -----
-            api_id (str): API ID provided by Telegram.
-            api_hash (str): API Hash provided by Telegram.
-            session (str): Session file location.
+        Parameters:
+        ----------
+        api_id : str
+            API ID, предоставленный Telegram.
+        api_hash : str
+            API Hash, предоставленный Telegram.
+        session : str
+            Расположение файла сессии.
         """
         self.client = TelegramClient(session, api_id, api_hash)
         logger.info("TelegramClient initialized")
 
     async def connect(self) -> None:
-        """Connect to Telegram."""
+        """Подключение к Telegram"""
         await self.client.connect()
         logger.info("TelegramClient connected")
 
     async def get_dialogs_list(self) -> List[dict]:
-        """Get a list of dalogs.
+        """Получить список диалогов.
 
-        Returns
-        -------
+        Returns:
+        -----
         List[dict]
-            A list of dalogs with properties:
+            Список диалогов с свойствами:
 
             {
                 "_": "Channel",
@@ -71,15 +88,20 @@ class TelegramScrapper:
     async def get_new_dialog_messages(
         self, dialog_id: int, offset_id: int = 0, limit: int = 10
     ) -> List[Message]:
-        """Get new messages for a dialog starting from a specific offset_id.
+        """Получить новые сообщения для диалога, начиная с определенного offset_id.
 
-        Args:
-            dialog_id (int): The ID of the dialog.
-            offset_id (int): The message ID from which to start fetching messages.
-            limit (int): The number of messages to retrieve.
+        Parameters:
+        ----------
+            dialog_id : int
+                ID диалога.
+            offset_id : int
+                ID сообщения, с которого начать извлечение сообщений.
+            limit : int
+                Количество извлекаемых сообщений.
 
         Returns:
-            List[Message]: A list of new messages.
+        -----
+            List[Message]: Список новых сообщений.
         """
         messages = await self.client.get_messages(
             dialog_id, offset_id=offset_id, limit=limit, reverse=True
@@ -87,13 +109,16 @@ class TelegramScrapper:
         return messages
 
     async def get_message_attachments(self, message: Message) -> List[dict]:
-        """Get attachments from a message.
+        """Получить вложения из сообщения.
 
-        Args:
-            message (Message): The message object from Telethon.
+        Parameters:
+        ----------
+            message : Message
+                Объект сообщения из Telethon.
 
         Returns:
-            List[dict]: A list of attachments with their properties.
+        -----
+            List[dict]: Список вложений с их свойствами.
         """
         attachments = []
         if message.photo:
@@ -115,15 +140,20 @@ class TelegramScrapper:
         return attachments
 
     async def get_message_replies(self, channel_id, message_id, limit=10) -> List[dict]:
-        """Get replies for a message.
+        """Получить ответы на сообщение.
 
-        Args:
-            channel_id (int): The ID of the channel.
-            message_id (int): The ID of the message to get replies for.
-            limit (int): The number of replies to retrieve.
+        Parameters:
+        ----------
+            channel_id : int
+                ID канала.
+            message_id : int
+                ID сообщения, для которого нужно получить ответы.
+            limit : int
+                Количество извлекаемых ответов.
 
         Returns:
-            List[dict]: A list of replies with their properties.
+        -----
+            List[dict]: Список ответов с их свойствами.
         """
         replies = []
         thread = await self.client(

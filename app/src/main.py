@@ -1,6 +1,6 @@
-"""The main module for organizing the process of receiving messages from Telegram channels and storing them
-in a PostgreSQL database. This module combines the functionality of TelegramScrapper and Database classes
-classes from the tg_scrapper and db modules.
+"""Основной модуль для организации процесса получения сообщений из каналов Telegram и их хранения
+в базе данных PostgreSQL. Этот модуль объединяет функциональность классов TelegramScrapper и Database
+из модулей tg_scrapper и db.
 """
 
 import logging
@@ -30,7 +30,38 @@ logger = logging.getLogger(__name__)
 
 
 class Main:
-    """The main class that combines functionality of TelegramScrapper and Database."""
+    """
+    Основной класс, объединяющий функциональность TelegramScrapper и Database.
+
+    Attributes:
+    ----------
+    const_api_id : str
+        API ID, предоставленный Telegram.
+    const_api_hash : str
+        API Hash, предоставленный Telegram.
+    const_session : str
+        Расположение файла сессии.
+    const_db_name : str
+        Название базы данных.
+    const_user : str
+        Имя пользователя базы данных.
+    const_password : str
+        Пароль пользователя базы данных.
+    const_db_host : str
+        Хост базы данных.
+    const_db_port : int
+        Порт базы данных.
+    const_images_path : str
+        Путь к директории для сохранения изображений.
+    const_attachments_path : str
+        Путь к директории для сохранения остальных типов вложений.
+    scrapper : TelegramScrapper
+        Экземпляр класса для взаимодействия с Telegram.
+    database : Database
+        Экземпляр класса для взаимодействия с базой данных PostgreSQL.
+    attachment_handler : AttachmentHandler
+        Экземпляр класса для обработки и сохранения вложений.
+    """
 
     def __init__(
         self,
@@ -45,28 +76,36 @@ class Main:
         const_images_path: str,
         const_attachments_path: str,
     ) -> None:
-        """Initialize Main instance.
+        """Инициализация экземпляра Main.
 
-        Args:
-        -----
-            const_api_id (str): API ID provided by Telegram.
-            const_api_hash (str): API Hash provided by Telegram.
-            const_session (str): Session file location.
-            const_db_name (str): The name of the database.
-            const_user (str): The name of the user.
-            const_password (str): The user's password.
-            const_db_host(str): The host of the database.
-            const_db_port(int): The port of the database.
+        Parameters:
+        ----------
+            const_api_id : str
+                API ID, предоставленный Telegram.
+            const_api_hash : str
+                API Hash, предоставленный Telegram.
+            const_session : str
+                Расположение файла сессии.
+            const_db_name : str
+                Название базы данных.
+            const_user : str
+                Имя пользователя.
+            const_password : str
+                Пароль пользователя.
+            const_db_host : str
+                Хост базы данных.
+            const_db_port : int
+                Порт базы данных.
         """
-        logger.info("Initializing Main class...")
+        logger.info("Инициализация класса Main")
 
         try:
             self.scrapper = TelegramScrapper(
                 const_api_id, const_api_hash, const_session
             )
-            logger.debug(f"TelegramScrapper initialized with session: {const_session}")
+            logger.debug(f"TelegramScrapper инициализирован с сессией: {const_session}")
         except Exception as e:
-            logger.error(f"Failed to initialize TelegramScrapper: {e}")
+            logger.error(f"Не удалось инициализировать TelegramScrapper: {e}")
             raise
 
         try:
@@ -74,10 +113,10 @@ class Main:
                 const_db_name, const_user, const_password, const_db_host, const_db_port
             )
             logger.debug(
-                f"Database initialized with dbname: {const_db_name}, user: {const_user}"
+                f"База данных инициализирована с dbname: {const_db_name}, user: {const_user}"
             )
         except Exception as e:
-            logger.error(f"Failed to initialize Database: {e}")
+            logger.error(f"Не удалось инициализировать базу данных: {e}")
             raise
 
         try:
@@ -85,26 +124,28 @@ class Main:
                 const_images_path, const_attachments_path
             )
         except Exception as e:
-            logger.error(f"Failed to initialize AttachmentHandler: {e}")
+            logger.error(f"Не удалось инициализировать AttachmentHandler: {e}")
             raise
 
     async def run(self) -> None:
-        """Run the scrapper and store messages into the database."""
-        logger.info("Attempting to connect to Telegram...")
+        """
+        Запуск скраппера и сохранение сообщений в базу данных.
+        """
+        logger.info("Попытка подключения к Telegram.")
         try:
             await self.scrapper.connect()
         except Exception as e:
-            logger.error(f"Failed to connect to Telegram due to: {e}")
+            logger.error(f"Не удалось подключиться к Telegram из-за: {e}")
             return  # Если не удалось подключиться к Telegram, дальше продолжать не имеет смысла
 
-        logger.info("Connected to Telegram.")
+        logger.info("Подключено к Telegram.")
 
         # get all channels
-        logger.info("Fetching dialogs...")
+        logger.info("Получение списка диалогов.")
         try:
             dialogs = await self.scrapper.get_dialogs_list()
         except Exception as e:
-            logger.error(f"Failed to fetch dialogs due to: {e}")
+            logger.error(f"Не удалось получить список диалогов из-за: {e}")
             return  # Если не удалось получить список диалогов, дальше продолжать не имеет смысла
 
         # FOR DEBUG ------------------------------------------------------
@@ -114,7 +155,7 @@ class Main:
             ]
         # FOR DEBUG ------------------------------------------------------
 
-        logger.debug(f"Fetched {len(dialogs)} dialogs")
+        logger.debug(f"Получено {len(dialogs)} диалогов")
 
         for dialog in dialogs:
             dialog_type: str = dialog.get("_", " ")
@@ -122,16 +163,16 @@ class Main:
             dialog_title: str = dialog.get("title", " ")
 
             try:
-                logger.debug(f"Processing channel: {dialog_title}")
+                logger.debug(f"Обработка канала: {dialog_title}")
                 self.database.check_and_add_channel(
                     dialog_id, dialog_title, dialog_type
                 )
             except Exception as e:
-                logger.error(f"Error while adding channel {dialog_title}: {e}")
+                logger.error(f"Ошибка при добавлении канала {dialog_title}: {e}")
                 continue
 
             try:
-                logger.info(f"Fetching messages from {dialog_title}...")
+                logger.info(f"Получение сообщений из {dialog_title}...")
                 last_message_id = self.database.get_last_message_id(dialog_id)
 
                 # FOR DEBUG ------------------------------------------------------
@@ -145,7 +186,7 @@ class Main:
                 self.database.add_messages(dialog_id, new_messages)
             except Exception as e:
                 logger.error(
-                    f"Error while fetching or saving messages from {dialog_title}: {e}"
+                    f"Ошибка при получении или сохранении сообщений из {dialog_title}: {e}"
                 )
                 continue
 
@@ -170,11 +211,11 @@ class Main:
                                 file_path,
                             )
                             logger.debug(
-                                f"Saved attachment for message {message.id} to {file_path}"
+                                f"Сохранено вложение для сообщения {message.id} в {file_path}"
                             )
                 except Exception as e:
                     logger.error(
-                        f"Error while processing attachments for message {message.id} in {dialog_title}: {e}"
+                        f"Ошибка при обработке вложений для сообщения {message.id} в {dialog_title}: {e}"
                     )
 
                 # Обработка и сохранение ответов на сообщения
@@ -199,25 +240,27 @@ class Main:
                                     date=reply["date"],
                                 )
                                 logger.debug(
-                                    f"Saved reply {reply['id']} for message {message.id}"
+                                    f"Сохранен ответ {reply['id']} на сообщение {message.id}"
                                 )
                 except Exception as e:
                     logger.error(
-                        f"Error while processing replies for message {message.id} in {dialog_title}: {e}"
+                        f"Ошибка при обработке ответов на сообщение {message.id} в {dialog_title}: {e}"
                     )
 
 
 def get_env_var(var_name: str) -> str:
-    """Get environment variable and log an error if it's not set."""
+    """
+    Получение переменной окружения и запись ошибки, если она не установлена.
+    """
     value = os.environ.get(var_name)
     if not value:
-        logger.error(f"Environment variable {var_name} is not set!")
+        logger.error(f"Переменная окружения {var_name} не установлена!")
         raise RuntimeError(f"{var_name} is not set")
     return value
 
 
 if __name__ == "__main__":
-    logger.info("Start running")
+    logger.info("Начало выполнения")
 
     # telegram session file location (hardcode)
     telegram_session = TELEGRAM_SESSION_FILE
@@ -250,6 +293,6 @@ if __name__ == "__main__":
         const_attachments_path=ATTACHMENTS_DIR,
     )
 
-    logger.info("Main loop")
+    logger.info("Основной цикл")
     loop = asyncio.get_event_loop()
     loop.run_until_complete(app.run())
