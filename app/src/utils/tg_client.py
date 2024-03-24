@@ -39,10 +39,11 @@ class TelegramScrapper:
         -------
         List[dict]
             A list of dalogs with properties:
+
             {
                 "_": "Channel",
-                "id": 1380524958,
-                "title": "Хулиномика",
+                "id": 112233445566,
+                "title": "Channel Title",
             }
         """
         dialogs = await self.client.get_dialogs()
