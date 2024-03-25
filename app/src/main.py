@@ -19,6 +19,7 @@ from utils.config import (
     DEBUG_MESSAGE_ID_THRESHOLD,
     MESSAGE_FETCH_LIMIT,
     REPLY_FETCH_LIMIT,
+    get_env_var,
 )
 
 logging.basicConfig(
@@ -246,17 +247,6 @@ class Main:
                     logger.error(
                         f"Ошибка при обработке ответов на сообщение {message.id} в {dialog_title}: {e}"
                     )
-
-
-def get_env_var(var_name: str) -> str:
-    """
-    Получение переменной окружения и запись ошибки, если она не установлена.
-    """
-    value = os.environ.get(var_name)
-    if not value:
-        logger.error(f"Переменная окружения {var_name} не установлена!")
-        raise RuntimeError(f"{var_name} is not set")
-    return value
 
 
 if __name__ == "__main__":

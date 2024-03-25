@@ -56,12 +56,12 @@ class TelegramScrapper:
         --------
         List[dict]
             Список диалогов с свойствами:
-
             {
                 "_": "Channel",
                 "id": 112233445566,
                 "title": "Channel Title",
             }
+
         """
         dialogs = await self.client.get_dialogs()
         logger.info(f"Got {len(dialogs)} channels")
