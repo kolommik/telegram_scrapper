@@ -16,7 +16,7 @@ class Database:
     Класс для взаимодействия с базой данных PostgreSQL.
 
     Attributes:
-    ----------
+    -----------
     db_name : str
         Имя базы данных.
     user : str
@@ -41,7 +41,7 @@ class Database:
         Инициализация экземпляра Database.
 
         Parameters:
-        ----------
+        -----------
         db_name : str
             Имя базы данных.
         user : str
@@ -69,7 +69,7 @@ class Database:
         Также добавляет тип диалога в таблицу DialogTypes, если он не существует.
 
         Parameters:
-        ----------
+        -----------
         dialog_id : int
             ID диалога.
         dialog_title : str
@@ -117,7 +117,7 @@ class Database:
         """Добавляет сообщения в таблицу Messages.
 
         Parameters:
-        ----------
+        -----------
             channel_id : int
                 ID канала.
             messages : list
@@ -150,12 +150,12 @@ class Database:
         """Получает ID последнего сохраненного сообщения для диалога.
 
         Parameters:
-        ----------
+        -----------
             dialog_id : int
                 ID диалога.
 
         Returns:
-        -----
+        --------
             int : ID последнего сообщения или 0, если сообщения не сохранены.
         """
         cursor = self.conn.cursor()
@@ -177,12 +177,12 @@ class Database:
         """Добавляет новый тип вложения, если он не существует, и возвращает его ID.
 
         Parameters:
-        ----------
+        -----------
             attachment_type : str
                 Тип вложения.
 
         Returns:
-        -----
+        --------
             int: ID типа вложения.
         """
         cursor = self.conn.cursor()
@@ -218,7 +218,7 @@ class Database:
         """Добавляет вложение в таблицу Attachments.
 
         Parameters:
-        ----------
+        -----------
             attachment_id : int
                 ID вложения.
             message_id : int
@@ -260,7 +260,7 @@ class Database:
         """Добавляет ответ в таблицу Replies.
 
         Parameters:
-        ----------
+        -----------
             reply_id : int
                 ID ответного сообщения.
             main_dialog_id : int
@@ -311,14 +311,14 @@ class Database:
         """Получает ID последнего сохраненного ответа для сообщения.
 
         Parameters:
-        ----------
+        -----------
             main_dialog_id : int
                 ID основного диалога.
             main_message_id : int
                 ID основного сообщения.
 
         Returns:
-        -----
+        --------
             int: ID последнего ответа или 0, если ответы не сохранены.
         """
         cursor = self.conn.cursor()

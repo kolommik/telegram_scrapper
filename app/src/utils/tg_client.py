@@ -19,7 +19,7 @@ class TelegramScrapper:
     Класс для взаимодействия с Telegram через Telethon.
 
     Attributes:
-    ----------
+    -----------
     api_id : str
         API ID, предоставленный Telegram.
     api_hash : str
@@ -33,7 +33,7 @@ class TelegramScrapper:
         Инициализация экземпляра TelegramScrapper.
 
         Parameters:
-        ----------
+        -----------
         api_id : str
             API ID, предоставленный Telegram.
         api_hash : str
@@ -53,7 +53,7 @@ class TelegramScrapper:
         """Получить список диалогов.
 
         Returns:
-        -----
+        --------
         List[dict]
             Список диалогов с свойствами:
 
@@ -91,7 +91,7 @@ class TelegramScrapper:
         """Получить новые сообщения для диалога, начиная с определенного offset_id.
 
         Parameters:
-        ----------
+        -----------
             dialog_id : int
                 ID диалога.
             offset_id : int
@@ -100,7 +100,7 @@ class TelegramScrapper:
                 Количество извлекаемых сообщений.
 
         Returns:
-        -----
+        --------
             List[Message]: Список новых сообщений.
         """
         messages = await self.client.get_messages(
@@ -112,12 +112,12 @@ class TelegramScrapper:
         """Получить вложения из сообщения.
 
         Parameters:
-        ----------
+        -----------
             message : Message
                 Объект сообщения из Telethon.
 
         Returns:
-        -----
+        --------
             List[dict]: Список вложений с их свойствами.
         """
         attachments = []
@@ -143,7 +143,7 @@ class TelegramScrapper:
         """Получить ответы на сообщение.
 
         Parameters:
-        ----------
+        -----------
             channel_id : int
                 ID канала.
             message_id : int
@@ -152,7 +152,7 @@ class TelegramScrapper:
                 Количество извлекаемых ответов.
 
         Returns:
-        -----
+        --------
             List[dict]: Список ответов с их свойствами.
         """
         replies = []

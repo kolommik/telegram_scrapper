@@ -34,7 +34,7 @@ class Main:
     Основной класс, объединяющий функциональность TelegramScrapper и Database.
 
     Attributes:
-    ----------
+    -----------
     const_api_id : str
         API ID, предоставленный Telegram.
     const_api_hash : str
@@ -79,7 +79,7 @@ class Main:
         """Инициализация экземпляра Main.
 
         Parameters:
-        ----------
+        -----------
             const_api_id : str
                 API ID, предоставленный Telegram.
             const_api_hash : str

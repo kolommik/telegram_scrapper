@@ -14,14 +14,14 @@ class AttachmentHandler:
     Класс для обработки и сохранения вложений из сообщений Telegram.
 
     Attributes:
-    ----------
+    -----------
     images_path : str
         Путь к директории для сохранения изображений.
     attachments_path : str
         Путь к директории для сохранения остальных типов вложений.
 
     Methods:
-    -------
+    --------
     async save_attachment(client: TelegramClient, attachment: dict) -> str:
         Сохраняет вложение и возвращает путь к файлу.
     """
@@ -31,7 +31,7 @@ class AttachmentHandler:
         Инициализирует объект класса AttachmentHandler.
 
         Parameters:
-        ----------
+        -----------
         images_path : str
             Путь к директории для сохранения изображений.
         attachments_path : str
@@ -47,14 +47,14 @@ class AttachmentHandler:
         Сохраняет вложение и возвращает путь к файлу.
 
         Parameters:
-        ----------
+        -----------
         client : TelegramClient
             Клиент Telegram для скачивания медиафайлов.
         attachment : dict
             Словарь с информацией о вложении.
 
         Returns:
-        -------
+        --------
         str
             Путь к сохраненному файлу или None, если сохранение не удалось.
         """
